@@ -1,0 +1,37 @@
+#!/bin/bash
+
+username="the-admin-root-user"
+# Use the GitHub API to retrieve the list of repositories
+repos_url="https://api.github.com/users/$username/repos?per_page=1000"
+repos_response=$(curl -s "$repos_url")
+repos=$(echo "$repos_response" | jq -r '.[].name')
+
+# Iterate over each repository
+for repo in $repos; do
+  # Clone the repository
+  git clone "https://github.com/$username/$repo.git"
+
+  # Use the GitHub API to retrieve the list of releases
+  releases_url="https://api.github.com/repos/$username/$repo/releases"
+  releases_response=$(curl -s "$releases_url")
+  releases=$(echo "$releases_response" | jq -r '.[].tag_name')
+
+  # Iterate over each release
+  for release in $releases; do
+    # Create a folder for the release assets
+    mkdir -p "$repo/$release"
+
+    # Use the GitHub API to retrieve the list of release assets
+    assets_url="https://api.github.com/repos/$username/$repo/releases/tags/$release"
+    assets_response=$(curl -s "$assets_url")
+    assets=$(echo "$assets_response" | jq -r '.. | select(.["browser_download_url"]?) | .["browser_download_url"]')
+
+    # Download each release asset to its corresponding folder
+    cd "$repo/$release"
+    for asset in $assets; do
+      curl -LOJ "$asset"
+    done
+    cd ../..
+  done
+done
+

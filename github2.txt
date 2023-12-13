@@ -1,0 +1,24 @@
+#!/bin/bash
+USER=the-admin-root-user
+
+# clone all repositories for user specified
+for repo in $(curl -s "https://api.github.com/users/$USER/repos?per_page=1000" | jq -r '.. | select(.["clone_url"]?) | .["clone_url"]')
+do
+  git clone $repo
+done
+
+# download all release assets for each repository
+for repo in $(ls -d */)
+do
+  cd $repo
+  for release in $(curl -s "https://api.github.com/repos/$USER/${repo%/}/releases" | jq -r '.. | select(.["tag_name"]?) | .["tag_name"]')
+  do
+    mkdir -p $release
+    for asset in $(curl -s "https://api.github.com/repos/$USER/${repo%/}/releases/tags/$release" | jq -r '.. | select(.["browser_download_url"]?) | .["browser_download_url"]')
+    do
+      filename=$(basename $asset)
+      curl -L -o $release/$filename $asset
+    done
+  done
+  cd ..
+done
