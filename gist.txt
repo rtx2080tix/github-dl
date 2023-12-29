@@ -1,0 +1,26 @@
+#!/bin/bash
+
+# Replace <username> with the actual GitHub username
+USERNAME="rtx2080tix"
+
+# Get the list of gists from the user
+GISTS_URL="https://api.github.com/users/$USERNAME/gists"
+GISTS_JSON=$(curl -s "$GISTS_URL")
+
+# Iterate through each gist and download it
+echo "Downloading gists for user '$USERNAME':"
+for GIST in $(echo "$GISTS_JSON" | jq -r '.[].id'); do
+    # Get the gist JSON
+    GIST_JSON=$(curl -s "https://api.github.com/gists/$GIST")
+
+    # Get the gist filename
+    FILENAME=$(echo "$GIST_JSON" | jq -r '.files | keys[0] | .' | sed -e 's/\([^/]*\)$/\1/')
+
+    # Get the HTTP URL for the gist
+    URL=$(echo "$GIST_JSON" | jq -r '.html_url' | head -c -1) # Remove last character (trailing slash)
+
+    # Download the gist with its original name
+    wget -O "$FILENAME" "$URL"
+
+    echo "Downloaded: $URL -> $FILENAME"
+done
